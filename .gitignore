@@ -1,0 +1,14 @@
+# Ignore dependencies
+api/node_modules/
+client/node_modules/
+
+# Ignore build outputs
+api/dist/
+client/dist/
+
+# Ignore environment configs
+api/.env
+client/.env
+
+# Ignore lock file (optional)
+package-lock.json
