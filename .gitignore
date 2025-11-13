@@ -12,3 +12,5 @@ client/.env
 
 # Ignore lock file (optional)
 package-lock.json
+# Ignore demo.md
+demo.md

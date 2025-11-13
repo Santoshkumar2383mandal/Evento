@@ -14,29 +14,29 @@ const Ticket = require("./models/Ticket");
 const app = express();
 
 const bcryptSalt = bcrypt.genSaltSync(10);
-const jwtSecret = "bsbsfbrnsftentwnnwnwn";
+const jwtSecret = process.env.JWT_SECRET || "bsbsfbrnsftentwnnwnwn";
 
 app.use(express.json());
 app.use(cookieParser());
 app.use(
    cors({
       credentials: true,
-      origin: "http://localhost:5173",
+      origin: process.env.FRONTEND_URL || "http://localhost:5173",
    })
 );
 
 mongoose.connect(process.env.MONGO_URL);
 
-const storage = multer.diskStorage({
-   destination: (req, file, cb) => {
-      cb(null, "uploads/");
-   },
-   filename: (req, file, cb) => {
-      cb(null, file.originalname);
-   },
-});
-
+// Use memory storage for Vercel serverless compatibility
+// For production, consider using cloud storage (AWS S3, Cloudinary, etc.)
+const storage = multer.memoryStorage();
 const upload = multer({ storage });
+
+// Serve static files from uploads directory (only works in local dev)
+// For Vercel, you'll need to use cloud storage for file uploads
+if (process.env.VERCEL !== "1") {
+   app.use("/api", express.static("uploads"));
+}
 
 app.get("/test", (req, res) => {
    res.json("test ok");
@@ -128,7 +128,14 @@ const Event = mongoose.model("Event", eventSchema);
 app.post("/createEvent", upload.single("image"), async (req, res) => {
    try {
       const eventData = req.body;
-      eventData.image = req.file ? req.file.path : "";
+      // For Vercel/serverless: store image as base64 or use cloud storage
+      // For now, storing as base64 string in MongoDB
+      if (req.file) {
+         const base64Image = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+         eventData.image = base64Image;
+      } else {
+         eventData.image = "";
+      }
       const newEvent = new Event(eventData);
       await newEvent.save();
       res.status(201).json(newEvent);
@@ -254,7 +261,13 @@ app.delete("/tickets/:id", async (req, res) => {
    }
 });
 
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-   console.log(`Server is running on port ${PORT}`);
-});
+// Export for Vercel serverless functions
+module.exports = app;
+
+// Only listen if not in Vercel environment
+if (process.env.VERCEL !== "1") {
+   const PORT = process.env.PORT || 4000;
+   app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
+   });
+}
